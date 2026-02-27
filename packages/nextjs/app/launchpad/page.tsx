@@ -11,6 +11,7 @@ import {
   CheckCircleIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
+import deployedContracts from "~~/contracts/deployedContracts";
 import { useScaffoldEventHistory } from "~~/hooks/scaffold-eth";
 import { BondingCurveSaleAbi, Erc20Abi, MarketHealthOracleAbi, PancakeRouterAbi, VestingVaultAbi } from "~~/utils/abis";
 import { notification } from "~~/utils/scaffold-eth";
@@ -29,10 +30,16 @@ const Launchpad: NextPage = () => {
   const [isApproving, setIsApproving] = useState(false);
 
   // 1. Get launched token addresses from Factory event
+  // Use the deploy block so we don't scan from block 0 on live chains
+  const chainId = 97; // BSC Testnet
+  const factoryDeployBlock = BigInt(
+    (deployedContracts as Record<number, { TokenFactory?: { deployedOnBlock?: number } }>)?.[chainId]?.TokenFactory
+      ?.deployedOnBlock ?? 0,
+  );
   const { data: events, isLoading: eventsLoading } = useScaffoldEventHistory({
     contractName: "TokenFactory",
     eventName: "TokenLaunched",
-    fromBlock: 0n,
+    fromBlock: factoryDeployBlock,
   });
 
   const latestLaunch = events && events.length > 0 ? events[events.length - 1] : null;

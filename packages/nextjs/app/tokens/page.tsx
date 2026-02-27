@@ -11,6 +11,7 @@ import {
   LockClosedIcon,
   RocketLaunchIcon,
 } from "@heroicons/react/24/outline";
+import deployedContracts from "~~/contracts/deployedContracts";
 import { useScaffoldEventHistory } from "~~/hooks/scaffold-eth";
 import { BondingCurveSaleAbi } from "~~/utils/abis";
 
@@ -149,10 +150,14 @@ function TokenCard({
 
 // ── Page ────────────────────────────────────────────────────────────────────
 const TokensPage: NextPage = () => {
+  const factoryDeployBlock = BigInt(
+    (deployedContracts as Record<number, { TokenFactory?: { deployedOnBlock?: number } }>)?.[97]?.TokenFactory
+      ?.deployedOnBlock ?? 0,
+  );
   const { data: events, isLoading } = useScaffoldEventHistory({
     contractName: "TokenFactory",
     eventName: "TokenLaunched",
-    fromBlock: 0n,
+    fromBlock: factoryDeployBlock,
   });
 
   if (isLoading) {
