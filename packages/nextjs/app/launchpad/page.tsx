@@ -268,7 +268,7 @@ const Launchpad: NextPage = () => {
           <div className="flex">
             <button
               className={`flex-1 py-4 text-base font-bold transition-colors ${
-                mode === "buy" ? "bg-primary text-primary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+                mode === "buy" ? "bg-success text-success-content" : "bg-base-200 hover:bg-base-300 opacity-60"
               }`}
               onClick={() => {
                 setMode("buy");
@@ -332,13 +332,13 @@ const Launchpad: NextPage = () => {
                     </span>
                   </div>
                   <progress
-                    className="progress progress-primary w-full h-2"
+                    className="progress progress-success w-full h-2"
                     value={progressPercent}
                     max="100"
                   ></progress>
                 </div>
                 <button
-                  className="btn btn-primary w-full text-lg"
+                  className="btn btn-success w-full text-lg"
                   onClick={handleBuy}
                   disabled={isPending || !amount || Number(amount) <= 0}
                 >
