@@ -20,7 +20,7 @@ const PANCAKE_ROUTER_TESTNET = "0xD99D1c33F9fC3444f8101754aBC46c52416550d1" as c
 // WBNB on BSC Testnet
 const WBNB_TESTNET = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd" as const;
 
-type SwapMode = "buy" | "sell";
+type SwapMode = "buy" | "sell" | "claim";
 
 const Launchpad: NextPage = () => {
   const { address: connectedAddress } = useAccount();
@@ -110,6 +110,7 @@ const Launchpad: NextPage = () => {
   const progressPercent = Math.min((tokensSoldNum / maxSupply) * 100, 100);
   const amountBigInt = amount ? parseEther(amount) : 0n;
   const needsApproval = mode === "sell" && allowance !== undefined && amountBigInt > 0n && allowance < amountBigInt;
+  const claimableNum = unlockedAmount ? Number(formatEther(unlockedAmount as bigint)) : 0;
 
   // Estimate output for display (simplified spot price calc)
   const INITIAL_PRICE = 0.00000001; // BNB per token
@@ -260,13 +261,13 @@ const Launchpad: NextPage = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-5xl">
-        {/* ── LEFT: Swap Card ── */}
+      {/* ── Unified Card ── */}
+      <div className="w-full max-w-md">
         <div className="bg-base-100 shadow-xl rounded-3xl border border-base-300 overflow-hidden">
-          {/* Buy / Sell Toggle */}
+          {/* Three-tab header: Buy | Sell | Claim */}
           <div className="flex">
             <button
-              className={`flex-1 py-4 text-lg font-bold transition-colors ${
+              className={`flex-1 py-4 text-base font-bold transition-colors ${
                 mode === "buy" ? "bg-primary text-primary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
               }`}
               onClick={() => {
@@ -277,7 +278,7 @@ const Launchpad: NextPage = () => {
               Buy
             </button>
             <button
-              className={`flex-1 py-4 text-lg font-bold transition-colors ${
+              className={`flex-1 py-4 text-base font-bold transition-colors ${
                 mode === "sell" ? "bg-error text-error-content" : "bg-base-200 hover:bg-base-300 opacity-60"
               }`}
               onClick={() => {
@@ -287,167 +288,219 @@ const Launchpad: NextPage = () => {
             >
               Sell
             </button>
+            <button
+              className={`flex-1 py-4 text-base font-bold transition-colors ${
+                mode === "claim" ? "bg-secondary text-secondary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+              }`}
+              onClick={() => {
+                setMode("claim");
+                setAmount("");
+              }}
+            >
+              Claim
+            </button>
           </div>
 
           <div className="p-6">
-            {/* Phase context line */}
-            {mode === "sell" && !saleEnded && (
-              <div className="alert alert-info text-sm mb-4 py-2">
-                <ArrowsRightLeftIcon className="w-4 h-4 flex-shrink-0" />
-                <span>Selling back to the bonding curve. You'll receive BNB at the current spot price.</span>
-              </div>
-            )}
-            {mode === "sell" && saleEnded && (
-              <div className="alert alert-success text-sm mb-4 py-2">
-                <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-                <span>DEX is live. Swapping via PancakeSwap Router directly on-chain.</span>
-              </div>
-            )}
-
-            {/* Input field */}
-            <div className="form-control mb-2">
-              <label className="label pb-1">
-                <span className="label-text font-semibold">
-                  {mode === "buy" ? "You pay (BNB)" : "You sell (tokens)"}
-                </span>
-                {mode === "sell" && walletBalance && (
-                  <span
-                    className="label-text-alt text-primary cursor-pointer underline"
-                    onClick={() => setAmount(walletBalance.formatted)}
-                  >
-                    Max: {Number(walletBalance.formatted).toLocaleString()} {walletBalance.symbol}
-                  </span>
-                )}
-              </label>
-              <input
-                type="number"
-                step="any"
-                placeholder={mode === "buy" ? "0.0 BNB" : "0 tokens"}
-                className="input input-bordered input-lg w-full"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-              />
-            </div>
-
-            {/* Estimated output */}
-            {estimatedOut && (
-              <div className="flex items-center gap-2 text-sm opacity-70 mb-4 px-1">
-                <ArrowDownIcon className="w-4 h-4" />
-                <span>
-                  ≈ {estimatedOut} {mode === "buy" ? "tokens" : "BNB"} (est. at spot price)
-                </span>
-              </div>
-            )}
-
-            {/* Bonding curve progress (shown for context in Buy mode) */}
+            {/* ── BUY tab ── */}
             {mode === "buy" && (
-              <div className="mb-4">
-                <div className="flex justify-between text-xs opacity-60 mb-1">
-                  <span>Curve progress</span>
-                  <span>
-                    {tokensSoldNum.toLocaleString()} / {maxSupply.toLocaleString()}
-                  </span>
+              <>
+                <div className="form-control mb-2">
+                  <label className="label pb-1">
+                    <span className="label-text font-semibold">You pay (BNB)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="0.0 BNB"
+                    className="input input-bordered input-lg w-full"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                  />
                 </div>
-                <progress className="progress progress-primary w-full h-2" value={progressPercent} max="100"></progress>
-              </div>
-            )}
-
-            {/* Wallet balance shown in sell mode */}
-            {mode === "sell" && (
-              <div className="stats bg-base-200 shadow w-full mb-4">
-                <div className="stat py-2 place-items-center">
-                  <div className="stat-title text-xs">In Wallet (claimable to sell)</div>
-                  <div className="stat-value text-error text-xl">
-                    {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
+                {estimatedOut && (
+                  <div className="flex items-center gap-2 text-sm opacity-70 mb-4 px-1">
+                    <ArrowDownIcon className="w-4 h-4" />
+                    <span>≈ {estimatedOut} tokens (est. at spot price)</span>
                   </div>
-                  <div className="stat-desc">{walletBalance?.symbol || "tokens"}</div>
+                )}
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs opacity-60 mb-1">
+                    <span>Curve progress</span>
+                    <span>
+                      {tokensSoldNum.toLocaleString()} / {maxSupply.toLocaleString()}
+                    </span>
+                  </div>
+                  <progress
+                    className="progress progress-primary w-full h-2"
+                    value={progressPercent}
+                    max="100"
+                  ></progress>
                 </div>
-              </div>
+                <button
+                  className="btn btn-primary w-full text-lg"
+                  onClick={handleBuy}
+                  disabled={isPending || !amount || Number(amount) <= 0}
+                >
+                  {isPending ? <span className="loading loading-spinner"></span> : "Buy"}
+                </button>
+              </>
             )}
 
-            {/* Action button(s) */}
-            {mode === "sell" && needsApproval ? (
-              <div className="flex flex-col gap-2">
-                <button
-                  className="btn btn-warning w-full text-lg"
-                  onClick={handleApprove}
-                  disabled={isApproving || !amount}
-                >
-                  {isApproving ? <span className="loading loading-spinner"></span> : `Approve ${amount || "?"} tokens`}
-                </button>
-                <p className="text-xs text-center opacity-60">Step 1 of 2 — Approve, then Sell</p>
-              </div>
-            ) : (
-              <button
-                className={`btn w-full text-lg ${mode === "buy" ? "btn-primary" : "btn-error"}`}
-                onClick={handleSwap}
-                disabled={isPending || !amount || Number(amount) <= 0}
-              >
-                {isPending ? (
-                  <span className="loading loading-spinner"></span>
-                ) : mode === "buy" ? (
-                  "Buy"
-                ) : saleEnded ? (
-                  "Sell on DEX"
-                ) : (
-                  "Sell"
+            {/* ── SELL tab ── */}
+            {mode === "sell" && (
+              <>
+                {!saleEnded && (
+                  <div className="alert alert-info text-sm mb-4 py-2">
+                    <ArrowsRightLeftIcon className="w-4 h-4 flex-shrink-0" />
+                    <span>Selling back to the bonding curve. You&apos;ll receive BNB at the current spot price.</span>
+                  </div>
                 )}
-              </button>
+                {saleEnded && (
+                  <div className="alert alert-success text-sm mb-4 py-2">
+                    <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+                    <span>DEX is live. Swapping via PancakeSwap Router directly on-chain.</span>
+                  </div>
+                )}
+                <div className="form-control mb-2">
+                  <label className="label pb-1">
+                    <span className="label-text font-semibold">You sell (tokens)</span>
+                    {walletBalance && (
+                      <span
+                        className="label-text-alt text-primary cursor-pointer underline"
+                        onClick={() => setAmount(walletBalance.formatted)}
+                      >
+                        Max: {Number(walletBalance.formatted).toLocaleString()} {walletBalance.symbol}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="0 tokens"
+                    className="input input-bordered input-lg w-full"
+                    value={amount}
+                    onChange={e => setAmount(e.target.value)}
+                  />
+                </div>
+                {estimatedOut && (
+                  <div className="flex items-center gap-2 text-sm opacity-70 mb-4 px-1">
+                    <ArrowDownIcon className="w-4 h-4" />
+                    <span>≈ {estimatedOut} BNB (est. at spot price)</span>
+                  </div>
+                )}
+                <div className="stats bg-base-200 shadow w-full mb-4">
+                  <div className="stat py-2 place-items-center">
+                    <div className="stat-title text-xs">In Wallet</div>
+                    <div className="stat-value text-error text-xl">
+                      {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
+                    </div>
+                    <div className="stat-desc">{walletBalance?.symbol || "tokens"}</div>
+                  </div>
+                </div>
+                {needsApproval ? (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      className="btn btn-warning w-full text-lg"
+                      onClick={handleApprove}
+                      disabled={isApproving || !amount}
+                    >
+                      {isApproving ? (
+                        <span className="loading loading-spinner"></span>
+                      ) : (
+                        `Approve ${amount || "?"} tokens`
+                      )}
+                    </button>
+                    <p className="text-xs text-center opacity-60">Step 1 of 2 — Approve, then Sell</p>
+                  </div>
+                ) : (
+                  <button
+                    className="btn btn-error w-full text-lg"
+                    onClick={handleSwap}
+                    disabled={isPending || !amount || Number(amount) <= 0}
+                  >
+                    {isPending ? <span className="loading loading-spinner"></span> : saleEnded ? "Sell on DEX" : "Sell"}
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* ── CLAIM tab ── */}
+            {mode === "claim" && (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <LockClosedIcon className="w-5 h-5 text-secondary" />
+                    <span className="font-bold text-lg">Vesting Status</span>
+                  </div>
+                  <div className="badge badge-accent gap-1">
+                    Health: {healthScore ? (Number(healthScore) / 100).toFixed(0) : "0"}%
+                  </div>
+                </div>
+                <p className="text-sm opacity-70 mb-4">
+                  Tokens unlock based on market health. Claim to your wallet, then switch to the <strong>Sell</strong>{" "}
+                  tab.
+                </p>
+                <div className="stats shadow bg-base-200 w-full mb-4">
+                  <div className="stat place-items-center py-2">
+                    <div className="stat-title text-xs">Still Locked</div>
+                    <div className="stat-value text-secondary text-xl">
+                      {lockedAmount ? Number(formatEther(lockedAmount as bigint)).toLocaleString() : "0"}
+                    </div>
+                  </div>
+                  <div className="stat place-items-center py-2">
+                    <div className="stat-title text-xs">Claimable Now</div>
+                    <div className="stat-value text-primary text-xl">{claimableNum.toLocaleString()}</div>
+                  </div>
+                  <div className="stat place-items-center py-2">
+                    <div className="stat-title text-xs">In Wallet</div>
+                    <div className="stat-value text-accent text-xl">
+                      {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-secondary w-full text-lg"
+                  onClick={handleClaim}
+                  disabled={isPending || claimableNum === 0}
+                >
+                  {isPending ? <span className="loading loading-spinner"></span> : "Claim Unlocked Tokens"}
+                </button>
+              </>
             )}
           </div>
         </div>
 
-        {/* ── RIGHT: Vesting Card ── */}
-        <div className="bg-base-100 shadow-xl rounded-3xl p-6 border border-base-300 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <LockClosedIcon className="w-6 h-6 text-secondary" />
-                <h2 className="text-xl font-bold m-0">Your Vesting</h2>
-              </div>
-              <div className="badge badge-accent gap-1">
-                Health: {healthScore ? (Number(healthScore) / 100).toFixed(0) : "0"}%
-              </div>
+        {/* ── Vesting Summary (always visible below the card) ── */}
+        <div className="mt-4 bg-base-100 rounded-2xl border border-base-300 px-5 py-4 shadow">
+          <div className="flex items-center gap-2 mb-3">
+            <LockClosedIcon className="w-4 h-4 text-secondary" />
+            <span className="font-semibold text-sm">Vesting Overview</span>
+            <div className="ml-auto badge badge-accent badge-sm">
+              Health: {healthScore ? (Number(healthScore) / 100).toFixed(0) : "0"}%
             </div>
-
-            <p className="text-sm opacity-70 mb-4">
-              Bought tokens are locked here and unlock based on market health. Claim them to your wallet, then sell
-              using the swap card.
-            </p>
-
-            <div className="stats shadow bg-base-200 w-full mb-4">
-              <div className="stat place-items-center py-2">
-                <div className="stat-title text-xs">Still Locked</div>
-                <div className="stat-value text-secondary text-xl">
-                  {lockedAmount ? Number(formatEther(lockedAmount as bigint)).toLocaleString() : "0"}
-                </div>
-              </div>
-              <div className="stat place-items-center py-2">
-                <div className="stat-title text-xs">Claimable Now</div>
-                <div className="stat-value text-primary text-xl">
-                  {unlockedAmount ? Number(formatEther(unlockedAmount as bigint)).toLocaleString() : "0"}
-                </div>
-              </div>
-              <div className="stat place-items-center py-2">
-                <div className="stat-title text-xs">In Wallet</div>
-                <div className="stat-value text-accent text-xl">
-                  {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs opacity-50 mb-4">
-              💡 Tip: Claim tokens → Switch to <strong>Sell</strong> tab → Enter amount → Sell instantly.
-            </p>
           </div>
-
-          <button
-            className="btn btn-secondary w-full text-lg"
-            onClick={handleClaim}
-            disabled={isPending || !unlockedAmount || (unlockedAmount as bigint) === 0n}
-          >
-            {isPending ? <span className="loading loading-spinner"></span> : "Claim Unlocked Tokens"}
-          </button>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div>
+              <p className="text-xs opacity-60 mb-0.5">Locked</p>
+              <p className="font-bold text-secondary text-sm">
+                {lockedAmount ? Number(formatEther(lockedAmount as bigint)).toLocaleString() : "0"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs opacity-60 mb-0.5">Claimable</p>
+              <p className="font-bold text-primary text-sm">{claimableNum.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs opacity-60 mb-0.5">In Wallet</p>
+              <p className="font-bold text-accent text-sm">
+                {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs opacity-50 mt-3">
+            💡 Claim tokens → switch to <strong>Sell</strong> tab → sell instantly.
+          </p>
         </div>
       </div>
     </div>
