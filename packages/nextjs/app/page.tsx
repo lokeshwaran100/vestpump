@@ -1,23 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { NextPage } from "next";
-import { useAccount } from "wagmi";
-import { InformationCircleIcon, RocketLaunchIcon, LockClosedIcon, ChartBarIcon } from "@heroicons/react/24/outline";
-import { useScaffoldReadContract, useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
-import { Address } from "@scaffold-ui/components";
+import { ChartBarIcon, InformationCircleIcon, LockClosedIcon, RocketLaunchIcon } from "@heroicons/react/24/outline";
+import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 const Home: NextPage = () => {
-  const { address: connectedAddress } = useAccount();
+  const router = useRouter();
 
   // State for token creation form
   const [tokenName, setTokenName] = useState("");
   const [tokenSymbol, setTokenSymbol] = useState("");
+  const [isLaunching, setIsLaunching] = useState(false);
 
   const { writeContractAsync: writeTokenFactory } = useScaffoldWriteContract("TokenFactory");
 
   const handleLaunch = async () => {
     if (!tokenName || !tokenSymbol) return;
+    setIsLaunching(true);
     try {
       await writeTokenFactory({
         functionName: "createTokenLaunch",
@@ -25,9 +26,12 @@ const Home: NextPage = () => {
       });
       setTokenName("");
       setTokenSymbol("");
-      // Realistically we'd want to index these launches, but for MVP we rely on the deployer's address or events
+      // Navigate to launchpad so the user can interact with their new token
+      router.push("/launchpad");
     } catch (e) {
       console.error("Error launching token:", e);
+    } finally {
+      setIsLaunching(false);
     }
   };
 
@@ -40,7 +44,8 @@ const Home: NextPage = () => {
             <span className="block text-xl opacity-80">Market-Driven Token Launches</span>
           </h1>
           <p className="mt-4 text-lg">
-            Fair launches with <strong>immediate, market-driven vesting</strong>. Stop early dumping with bonding curves that unlock your supply based on real market health, not arbitrary timers.
+            Fair launches with <strong>immediate, market-driven vesting</strong>. Stop early dumping with bonding curves
+            that unlock your supply based on real market health, not arbitrary timers.
           </p>
         </div>
 
@@ -77,9 +82,9 @@ const Home: NextPage = () => {
           <button
             className="btn btn-primary w-full mt-8 shadow-md text-lg"
             onClick={handleLaunch}
-            disabled={!tokenName || !tokenSymbol}
+            disabled={!tokenName || !tokenSymbol || isLaunching}
           >
-            Launch on Bonding Curve
+            {isLaunching ? <span className="loading loading-spinner"></span> : "Launch on Bonding Curve"}
           </button>
         </div>
 
@@ -90,24 +95,29 @@ const Home: NextPage = () => {
               <ChartBarIcon className="w-8 h-8 text-primary" />
             </div>
             <h3 className="font-bold text-lg m-0">Bonding Curve</h3>
-            <p className="text-sm m-0 opacity-80">Tokens are minted and prices rise precisely as demand increases. No hidden pre-mines.</p>
+            <p className="text-sm m-0 opacity-80">
+              Tokens are minted and prices rise precisely as demand increases. No hidden pre-mines.
+            </p>
           </div>
           <div className="bg-base-200 p-6 flex flex-col items-center text-center rounded-2xl gap-3 shadow-inner">
             <div className="p-3 bg-secondary/10 rounded-full">
               <LockClosedIcon className="w-8 h-8 text-secondary" />
             </div>
             <h3 className="font-bold text-lg m-0">Instant Vesting</h3>
-            <p className="text-sm m-0 opacity-80">All bought tokens hit a Vesting Vault immediately. You unlock them by engaging and holding.</p>
+            <p className="text-sm m-0 opacity-80">
+              All bought tokens hit a Vesting Vault immediately. You unlock them by engaging and holding.
+            </p>
           </div>
           <div className="bg-base-200 p-6 flex flex-col items-center text-center rounded-2xl gap-3 shadow-inner">
             <div className="p-3 bg-accent/10 rounded-full">
               <InformationCircleIcon className="w-8 h-8 text-accent" />
             </div>
             <h3 className="font-bold text-lg m-0">Market Health</h3>
-            <p className="text-sm m-0 opacity-80">Unlocks accelerate when liquidity is deep and volatility is low. Dumpers get trapped.</p>
+            <p className="text-sm m-0 opacity-80">
+              Unlocks accelerate when liquidity is deep and volatility is low. Dumpers get trapped.
+            </p>
           </div>
         </div>
-
       </div>
     </>
   );
