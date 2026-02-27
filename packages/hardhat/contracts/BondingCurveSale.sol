@@ -34,6 +34,7 @@ contract BondingCurveSale is Ownable {
     uint256 public buyVelocity; // Simplified velocity counter
 
     event TokensPurchased(address indexed buyer, uint256 bnbAmount, uint256 tokenAmount);
+    event TokensSold(address indexed seller, uint256 tokenAmount, uint256 bnbReturned);
     event SaleCompleted(uint256 totalBnbRaised, uint256 totalTokensSold);
 
     constructor(
@@ -94,6 +95,36 @@ contract BondingCurveSale is Ownable {
         if (bnbRaised >= TARGET_RAISE || tokensSold >= MAX_SUPPLY) {
             _completeSale();
         }
+    }
+
+    /**
+     * @dev Sell tokens back to the bonding curve during the sale phase.
+     *      The seller must approve this contract to spend their tokens first.
+     */
+    function sellTokens(uint256 tokenAmount) external {
+        require(!saleEnded, "Sale has ended, use the DEX");
+        require(tokenAmount > 0, "Must sell more than 0");
+        require(tokensSold >= tokenAmount, "Cannot sell more than curve sold");
+
+        // Calculate BNB return at current spot price
+        uint256 completionFactor = (tokensSold * 10000) / MAX_SUPPLY;
+        uint256 currentPrice = INITIAL_PRICE + ((FINAL_PRICE - INITIAL_PRICE) * completionFactor) / 10000;
+        uint256 bnbReturn = (tokenAmount * currentPrice) / 10**18;
+
+        require(address(this).balance >= bnbReturn, "Insufficient BNB in contract");
+
+        // Update state before external calls
+        tokensSold -= tokenAmount;
+        bnbRaised -= bnbReturn;
+
+        // Burn the tokens from the seller (requires prior approve)
+        PumpToken(address(token)).burn(msg.sender, tokenAmount);
+
+        // Return BNB to seller
+        (bool success, ) = payable(msg.sender).call{value: bnbReturn}("");
+        require(success, "BNB transfer failed");
+
+        emit TokensSold(msg.sender, tokenAmount, bnbReturn);
     }
 
     /**

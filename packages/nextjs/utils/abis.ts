@@ -37,6 +37,16 @@ export const BondingCurveSaleAbi = [
   {
     anonymous: false,
     inputs: [
+      { indexed: true, internalType: "address", name: "seller", type: "address" },
+      { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "bnbReturned", type: "uint256" },
+    ],
+    name: "TokensSold",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
       { indexed: true, internalType: "address", name: "buyer", type: "address" },
       { indexed: false, internalType: "uint256", name: "bnbAmount", type: "uint256" },
       { indexed: false, internalType: "uint256", name: "tokenAmount", type: "uint256" },
@@ -159,6 +169,13 @@ export const BondingCurveSaleAbi = [
     type: "function",
   },
   { inputs: [], name: "withdrawDevFunds", outputs: [], stateMutability: "nonpayable", type: "function" },
+  {
+    inputs: [{ internalType: "uint256", name: "tokenAmount", type: "uint256" }],
+    name: "sellTokens",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ] as const;
 export const VestingVaultAbi = [
   {
@@ -462,6 +479,64 @@ export const MarketHealthOracleAbi = [
     name: "updatePreDexMetrics",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
+
+// Minimal ERC20 ABI — just approve + allowance needed for sell flows
+export const Erc20Abi = [
+  {
+    inputs: [
+      { internalType: "address", name: "spender", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "approve",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "owner", type: "address" },
+      { internalType: "address", name: "spender", type: "address" },
+    ],
+    name: "allowance",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// PancakeSwap V2 Router — minimal ABI for swapExactTokensForETH
+export const PancakeRouterAbi = [
+  {
+    inputs: [
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
+      { internalType: "address[]", name: "path", type: "address[]" },
+      { internalType: "address", name: "to", type: "address" },
+      { internalType: "uint256", name: "deadline", type: "uint256" },
+    ],
+    name: "swapExactTokensForETH",
+    outputs: [{ internalType: "uint256[]", name: "amounts", type: "uint256[]" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "address[]", name: "path", type: "address[]" },
+    ],
+    name: "getAmountsOut",
+    outputs: [{ internalType: "uint256[]", name: "amounts", type: "uint256[]" }],
+    stateMutability: "view",
     type: "function",
   },
 ] as const;

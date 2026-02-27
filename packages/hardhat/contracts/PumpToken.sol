@@ -23,4 +23,9 @@ contract PumpToken is ERC20, Ownable {
         require(msg.sender == minter, "Only minter can mint");
         _mint(to, amount);
     }
+
+    function burn(address from, uint256 amount) external {
+        require(msg.sender == minter, "Only minter can burn");
+        _burn(from, amount);
+    }
 }
