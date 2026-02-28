@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { NextPage } from "next";
 import { formatEther, parseEther } from "viem";
-import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useBalance, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import {
   ArrowDownIcon,
   ArrowsRightLeftIcon,
@@ -24,6 +24,7 @@ type SwapMode = "buy" | "sell" | "claim";
 
 const Launchpad: NextPage = () => {
   const { address: connectedAddress } = useAccount();
+  const publicClient = usePublicClient({ chainId: 97 });
   const [mode, setMode] = useState<SwapMode>("buy");
   const [amount, setAmount] = useState("");
   const [isApproving, setIsApproving] = useState(false);
@@ -33,7 +34,7 @@ const Launchpad: NextPage = () => {
   const [launchLoading, setLaunchLoading] = useState(true);
 
   useEffect(() => {
-    fetchLatestTokenLaunch(97)
+    fetchLatestTokenLaunch()
       .then(data => setLatestLaunch(data))
       .finally(() => setLaunchLoading(false));
   }, []);
@@ -44,14 +45,14 @@ const Launchpad: NextPage = () => {
   const oracleAddress = latestLaunch?.oracle_address as `0x${string}` | undefined;
 
   // 2. Read sale state
-  const { data: tokensSold } = useReadContract({
+  const { data: tokensSold, refetch: refetchTokensSold } = useReadContract({
     address: saleAddress,
     abi: BondingCurveSaleAbi,
     functionName: "tokensSold",
     query: { enabled: !!saleAddress },
   });
 
-  const { data: saleEnded } = useReadContract({
+  const { data: saleEnded, refetch: refetchSaleEnded } = useReadContract({
     address: saleAddress,
     abi: BondingCurveSaleAbi,
     functionName: "saleEnded",
@@ -59,7 +60,7 @@ const Launchpad: NextPage = () => {
   });
 
   // 3. Read oracle
-  const { data: healthScore } = useReadContract({
+  const { data: healthScore, refetch: refetchHealth } = useReadContract({
     address: oracleAddress,
     abi: MarketHealthOracleAbi,
     functionName: "getMarketHealthScore",
@@ -67,27 +68,27 @@ const Launchpad: NextPage = () => {
   });
 
   // 4. Read vault state for user
-  const { data: unlockedAmount } = useReadContract({
+  const { data: unlockedAmount, refetch: refetchUnlocked } = useReadContract({
     address: vaultAddress,
     abi: VestingVaultAbi,
     functionName: "calculateUnlockedAmount",
     args: [connectedAddress || "0x0000000000000000000000000000000000000000"],
-    query: { enabled: !!vaultAddress && !!connectedAddress },
+    query: { enabled: !!vaultAddress && !!connectedAddress, staleTime: 0 },
   });
 
-  const { data: lockedAmount } = useReadContract({
+  const { data: lockedAmount, refetch: refetchLocked } = useReadContract({
     address: vaultAddress,
     abi: VestingVaultAbi,
     functionName: "getLockedAmount",
     args: [connectedAddress || "0x0000000000000000000000000000000000000000"],
-    query: { enabled: !!vaultAddress && !!connectedAddress },
+    query: { enabled: !!vaultAddress && !!connectedAddress, staleTime: 0 },
   });
 
   // 5. Read wallet token balance
   const { data: walletBalance, refetch: refetchBalance } = useBalance({
     address: connectedAddress,
     token: tokenAddress,
-    query: { enabled: !!tokenAddress && !!connectedAddress },
+    query: { enabled: !!tokenAddress && !!connectedAddress, staleTime: 0 },
   });
 
   // 6. Read current allowance (for sell approve flow)
@@ -105,6 +106,19 @@ const Launchpad: NextPage = () => {
 
   // 7. Write actions
   const { writeContractAsync, isPending } = useWriteContract();
+
+  /** Refetch everything after a confirmed transaction */
+  const refetchAll = async () => {
+    await Promise.all([
+      refetchTokensSold(),
+      refetchSaleEnded(),
+      refetchHealth(),
+      refetchUnlocked(),
+      refetchLocked(),
+      refetchBalance(),
+      refetchAllowance(),
+    ]);
+  };
 
   // Derived values
   const maxSupply = 1_000_000_000;
@@ -127,15 +141,16 @@ const Launchpad: NextPage = () => {
         : null;
 
   const handleApprove = async () => {
-    if (!tokenAddress || !spenderForSell || !amountBigInt) return;
+    if (!tokenAddress || !spenderForSell || !amountBigInt || !publicClient) return;
     setIsApproving(true);
     try {
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: tokenAddress,
         abi: Erc20Abi,
         functionName: "approve",
         args: [spenderForSell, amountBigInt],
       });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
       await refetchAllowance();
       notification.success("Approval granted!");
     } catch (e) {
@@ -147,16 +162,17 @@ const Launchpad: NextPage = () => {
   };
 
   const handleBuy = async () => {
-    if (!saleAddress || !amount) return;
+    if (!saleAddress || !amount || !publicClient) return;
     try {
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: saleAddress,
         abi: BondingCurveSaleAbi,
         functionName: "buyTokens",
         value: parseEther(amount),
       });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
       setAmount("");
-      await refetchBalance();
+      await refetchAll();
       notification.success("Tokens purchased!");
     } catch (e) {
       console.error(e);
@@ -165,16 +181,17 @@ const Launchpad: NextPage = () => {
   };
 
   const handleSellOnCurve = async () => {
-    if (!saleAddress || !amount) return;
+    if (!saleAddress || !amount || !publicClient) return;
     try {
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: saleAddress,
         abi: BondingCurveSaleAbi,
         functionName: "sellTokens",
         args: [parseEther(amount)],
       });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
       setAmount("");
-      await refetchBalance();
+      await refetchAll();
       notification.success("Tokens sold back to curve!");
     } catch (e) {
       console.error(e);
@@ -183,17 +200,18 @@ const Launchpad: NextPage = () => {
   };
 
   const handleSellOnDex = async () => {
-    if (!tokenAddress || !connectedAddress || !amount) return;
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20); // 20 min
+    if (!tokenAddress || !connectedAddress || !amount || !publicClient) return;
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 20);
     try {
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: PANCAKE_ROUTER_TESTNET,
         abi: PancakeRouterAbi,
         functionName: "swapExactTokensForETH",
         args: [parseEther(amount), 0n, [tokenAddress, WBNB_TESTNET], connectedAddress, deadline],
       });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
       setAmount("");
-      await refetchBalance();
+      await refetchAll();
       notification.success("Swap submitted on DEX!");
     } catch (e) {
       console.error(e);
@@ -208,14 +226,17 @@ const Launchpad: NextPage = () => {
   };
 
   const handleClaim = async () => {
-    if (!vaultAddress) return;
+    if (!vaultAddress || !publicClient) return;
     try {
-      await writeContractAsync({
+      const txHash = await writeContractAsync({
         address: vaultAddress,
         abi: VestingVaultAbi,
         functionName: "claim",
       });
-      await refetchBalance();
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      // Small delay so the RPC node reflects the updated vault state
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      await refetchAll();
       notification.success("Tokens claimed to wallet!");
     } catch (e) {
       console.error(e);

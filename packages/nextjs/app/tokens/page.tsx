@@ -15,8 +15,6 @@ import {
 import { BondingCurveSaleAbi } from "~~/utils/abis";
 import { type TokenLaunch, fetchTokenLaunches } from "~~/utils/supabase";
 
-const CHAIN_ID = 97;
-
 // ── Individual token card — reads live on-chain stats for its sale contract ──
 function TokenCard({ launch, index }: { launch: TokenLaunch; index: number }) {
   const saleAddress = launch.sale_address as `0x${string}`;
@@ -152,7 +150,7 @@ const TokensPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchTokenLaunches(CHAIN_ID)
+    fetchTokenLaunches()
       .then(data => setLaunches(data))
       .finally(() => setIsLoading(false));
   }, []);
