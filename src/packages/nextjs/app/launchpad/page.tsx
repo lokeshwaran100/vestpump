@@ -104,7 +104,13 @@ const LaunchpadContent = () => {
     query: { enabled: !!tokenAddress && !!connectedAddress, staleTime: 0 },
   });
 
-  // 6. Read current allowance (for sell approve flow)
+  // 6. Read wallet BNB balance
+  const { data: bnbBalance, refetch: refetchBnbBalance } = useBalance({
+    address: connectedAddress,
+    query: { enabled: !!connectedAddress, staleTime: 0 },
+  });
+
+  // 7. Read current allowance (for sell approve flow)
   const spenderForSell = saleEnded ? PANCAKE_ROUTER_TESTNET : saleAddress;
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: tokenAddress,
@@ -130,6 +136,7 @@ const LaunchpadContent = () => {
       refetchUnlocked(),
       refetchLocked(),
       refetchBalance(),
+      refetchBnbBalance(),
       refetchAllowance(),
     ]);
   };
@@ -347,6 +354,14 @@ const LaunchpadContent = () => {
                 <div className="form-control mb-2">
                   <label className="label pb-1">
                     <span className="label-text font-semibold">You pay (BNB)</span>
+                    {bnbBalance && (
+                      <span
+                        className="label-text-alt text-primary cursor-pointer underline"
+                        onClick={() => setAmount(bnbBalance.formatted)}
+                      >
+                        Max: {Number(bnbBalance.formatted).toLocaleString()} {bnbBalance.symbol}
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"

@@ -68,9 +68,6 @@ journey
       Oracle switches to DEX health signals: 3: System
       Vesting continues with live DEX score: 4: Buyer
 ```
-
-> **Mermaid code above** — paste at [mermaid.live](https://mermaid.live) to render visually.
-
 ---
 
 ## System Architecture
@@ -102,9 +99,6 @@ graph TD
     LB -->|"addLiquidityETH()"| DEX[PancakeSwap V2]
     LB -->|"activateDex()"| MHO
 ```
-
-> **Mermaid code above** — paste at [mermaid.live](https://mermaid.live) to render.
-
 ---
 
 ## Quick Start

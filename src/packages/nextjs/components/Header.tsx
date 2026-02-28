@@ -42,10 +42,9 @@ export const HeaderMenuLinks = () => {
               href={href}
               passHref
               className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200
-                ${
-                  isActive
-                    ? "text-white bg-violet-600/20 border border-violet-500/40"
-                    : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+                ${isActive
+                  ? "text-white bg-violet-600/20 border border-violet-500/40"
+                  : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
                 }`}
             >
               {icon}
@@ -95,7 +94,6 @@ export const Header = () => {
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0 group">
-          <span className="text-2xl">🚀</span>
           <div className="flex flex-col leading-none">
             <span className="font-extrabold text-white tracking-tight text-base">VestPump</span>
             <span className="text-[10px] text-violet-400 font-medium tracking-widest uppercase">Launchpad</span>
