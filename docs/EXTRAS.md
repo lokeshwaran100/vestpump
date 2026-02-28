@@ -1,32 +1,13 @@
-# VestPump — Extras
+# Optional: Demo Video & Presentation
 
-## Demo Video
+Demo videos and slide decks are **mostly for presentation purposes**—pitches, finalist demos, or sharing with non-technical audiences. As a technical judge, I mainly **dive into the code and run the project myself**. What helps me most is a repo that's easy to get running: clear setup steps, a working `docs/TECHNICAL.md`, and reproducible instructions. Making it easy to start is far more useful than a video or slides.
 
-> *TODO: (Add your demo video link here once recorded)*
+If you still want to link supporting material, you can use the fields below:
 
----
+- **Demo video** — If you upload to YouTube (unlisted), you can paste the link here.  
+  Link: *TODO*
 
-## Presentation / Slide Deck
+- **Slide deck** — If you have a text-based PDF, you can link it here.  
+  Link: *TODO*
 
-> *TODO: (Add your slide deck link here)*
-
----
-
-## Additional Links
-
-| Resource | Link |
-|---|---|
-| BSC Testnet Explorer — TokenFactory | [0x3C3d0E...](https://testnet.bscscan.com/address/0x3C3d0E397065839e9d01a90bE04d01632062356C) |
-| Deployment Tx | [0xf3b0dd...](https://testnet.bscscan.com/tx/0xf3b0dd9c29eea99f682756013fc02bd805f4ac38fd1364041ace9f2e3de3856a) |
-
----
-
-## Notes for Judges
-
-The best way to evaluate VestPump is to:
-
-1. Review the smart contracts in [`src/packages/hardhat/contracts/`](../src/packages/hardhat/contracts/)
-2. Follow the setup steps in [`docs/TECHNICAL.md`](TECHNICAL.md) to run it locally
-3. Read the vesting formula and oracle logic explained in [`docs/PROJECT.md`](PROJECT.md)
-
-The core innovation is the `VestingVault` + `MarketHealthOracle` interplay — feel free to start there.
+> Video and slides are best when they support what's already in the repo. For technical evaluation, I rely on the code and documentation first.

@@ -1,126 +1,126 @@
-# VestPump — Technical Documentation
-
-## 1. Architecture Overview
-
-VestPump uses a **factory pattern**: one `TokenFactory` deployment creates a complete suite of contracts for each token launch.
-
-```
-TokenFactory
-├── deploys → PumpToken        (ERC20, controlled mint/burn)
-├── deploys → MarketHealthOracle (computes health score)
-├── deploys → VestingVault     (locks tokens, enforces unlock rules)
-├── deploys → LiquidityBootstrapper (seeds DEX on curve completion)
-└── deploys → BondingCurveSale (handles buy/sell, drives the system)
-```
-
-### Contract Interaction Flow
-
-```
-User ──buy()──→ BondingCurveSale
-                    │
-                    ├──mint()──────→ PumpToken
-                    │                   │ (minted directly to vault)
-                    ├──allocate()──→ VestingVault ←── oracle.getScore()
-                    │
-                    └──updateMetrics()──→ MarketHealthOracle
-                         (curve completion %, buyer count, velocity)
-
-When curve target hit:
-BondingCurveSale ──bootstrapLiquidity()──→ LiquidityBootstrapper
-                                               └──addLiquidityETH()──→ PancakeSwap V2
-
-User ──claim()──→ VestingVault
-                    └── calculates unlocked = allocation × healthScore × curveFactor
-                    └── transfers unlocked - already claimed tokens
-```
+# Technical: Architecture, Setup & Demo
 
 ---
 
-## 2. Smart Contracts
+## 1. Architecture
 
-### `PumpToken.sol`
-Standard ERC20 with a single designated `minter` (set to `BondingCurveSale`). Only the minter can mint or burn tokens. This ensures supply is always coupled to real purchases.
+### System Overview
 
-### `BondingCurveSale.sol`
-The central contract driving the launch:
-- **Buy**: Accepts BNB, computes token amount via linear bonding curve, mints tokens directly to `VestingVault`, and records user allocation
-- **Sell**: Burns tokens from seller (requires prior `approve`), returns BNB at current spot price; only available before curve completes
-- **Completion**: Triggers when `bnbRaised >= TARGET_RAISE` (50 BNB) or `tokensSold >= MAX_SUPPLY` (1B tokens); seeds liquidity via `LiquidityBootstrapper`
+VestPump uses a **factory pattern on BNB Chain**. One `TokenFactory` deployment creates a complete, wired suite of 5 smart contracts per token launch. The frontend (Next.js via Scaffold-ETH 2) interacts with these contracts using wagmi + viem. There is no backend — all logic is fully on-chain.
 
-**Bonding Curve Parameters:**
-| Parameter | Value |
+### Components
+
+| Component | Technology | Role |
+|---|---|---|
+| **Frontend** | Next.js, wagmi, viem | Token creation, buy/sell UI, vesting dashboard |
+| **TokenFactory** | Solidity | Deploys all 5 contracts per launch in one tx |
+| **PumpToken** | Solidity (ERC20) | Token with controlled mint/burn |
+| **BondingCurveSale** | Solidity | Handles buy/sell, tracks curve progress |
+| **VestingVault** | Solidity | Locks tokens, computes & enforces unlocks |
+| **MarketHealthOracle** | Solidity | Computes health score from on-chain signals |
+| **LiquidityBootstrapper** | Solidity | Seeds PancakeSwap V2 on curve completion |
+
+### Component Diagram
+
+```mermaid
+flowchart TB
+    subgraph Frontend
+        UI[Next.js App\nwagmi + viem]
+    end
+    subgraph Chain [BNB Chain - BSC Testnet]
+        TF[TokenFactory]
+        subgraph "Per-Token Suite"
+            PT[PumpToken\nERC20]
+            BCS[BondingCurveSale]
+            VV[VestingVault]
+            MHO[MarketHealthOracle]
+            LB[LiquidityBootstrapper]
+        end
+        DEX[PancakeSwap V2]
+    end
+    UI --> TF
+    UI --> BCS
+    UI --> VV
+    TF -->|deploys & wires| PT & BCS & VV & MHO & LB
+    BCS -->|mint| PT
+    BCS -->|allocate| VV
+    BCS -->|updateMetrics| MHO
+    VV -->|getScore| MHO
+    VV -->|safeTransfer| PT
+    BCS -->|bootstrapLiquidity| LB
+    LB -->|addLiquidityETH| DEX
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant BCS as BondingCurveSale
+    participant PT as PumpToken
+    participant VV as VestingVault
+    participant MHO as MarketHealthOracle
+
+    U->>F: Enter BNB amount → Buy
+    F->>BCS: buyTokens() + BNB
+    BCS->>BCS: compute tokenAmount from linear curve
+    BCS->>PT: mint(vault, tokenAmount)
+    BCS->>VV: allocateVesting(buyer, amount)
+    BCS->>MHO: updateCurveProgress() + updatePreDexMetrics()
+    BCS-->>F: emit TokensPurchased
+
+    U->>F: Click Claim
+    F->>VV: claim()
+    VV->>MHO: getMarketHealthScore()
+    VV->>MHO: getCurveCompletionFactor()
+    VV->>VV: unlocked = alloc × healthScore × curveFactor
+    VV->>PT: safeTransfer(buyer, claimable)
+    VV-->>F: emit TokensClaimed
+```
+
+### On-chain vs Off-chain
+
+| Concern | Where |
 |---|---|
-| `MAX_SUPPLY` | 1,000,000,000 tokens |
-| `TARGET_RAISE` | 50 BNB |
-| `INITIAL_PRICE` | 0.00000001 BNB/token |
-| `FINAL_PRICE` | 0.0000001 BNB/token (10× at end) |
+| Token minting, transfer, burn | On-chain (PumpToken) |
+| Vesting lock and unlock logic | On-chain (VestingVault) |
+| Health score computation | On-chain (MarketHealthOracle) |
+| DEX liquidity seeding | On-chain (LiquidityBootstrapper → PancakeSwap) |
+| UI rendering and wallet connection | Off-chain (Next.js frontend) |
 
-Price formula: `P(x) = INITIAL_PRICE + (FINAL_PRICE - INITIAL_PRICE) × (tokensSold / MAX_SUPPLY)`
+### Security Notes
 
-### `VestingVault.sol`
-Core vesting logic:
-- Receives allocated token balances from `BondingCurveSale`
-- `calculateUnlockedAmount(user)`: `allocation × healthScore × curveFactor / (10000 × 10000)`
-- `claim()`: Transfers `totalUnlocked - alreadyClaimed` to user
-- `getLockedAmount(user)`: Returns still-locked balance for UI display
-
-### `MarketHealthOracle.sol`
-Produces a composite market health score (0–10000 bps):
-
-**Pre-DEX scoring:**
-```
-baseScore = 5000
-buyerBonus = min(uniqueBuyers × 200, 2000)   // up to +2000 bps for ≥10 buyers
-momentumBonus = min(buyVelocity × 30, 3000)  // up to +3000 bps for ≥100 buys
-score = min(baseScore + buyerBonus + momentumBonus, 10000)
-```
-
-**Post-DEX scoring:**
-```
-baseScore = 7000
-penalty = min(twapDeviation, 5000)           // TWAP deviation hurts score
-liquidityBonus = liquidityDepth × 3000 / 10e18 // rewards deep liquidity
-score = min(baseScore + liquidityBonus - penalty, 10000)
-```
-
-### `LiquidityBootstrapper.sol`
-Called once by `BondingCurveSale` upon curve completion:
-- Approves `PancakeSwap V2 Router` to spend tokens
-- Calls `addLiquidityETH` with 50% of raised BNB and remaining token supply
-- LP tokens go to the project creator
-- Emits `LiquidityAdded` event marking the DEX-live state
-
-### `TokenFactory.sol`
-One-transaction launcher:
-- Deploys all 5 contracts with correct wiring
-- Transfers final ownership of `PumpToken` and `BondingCurveSale` to the creator
-- Transfers `LiquidityBootstrapper` ownership to creator (for LP withdrawal)
-- `BondingCurveSale` owns `VestingVault` and `MarketHealthOracle` during the sale phase
+- Only `BondingCurveSale` (set as `minter`) can mint or burn `PumpToken`
+- `VestingVault` ownership transferred to `BondingCurveSale` — only the sale contract can allocate vesting
+- `LiquidityBootstrapper` can only add liquidity once (`liquidityAdded` flag)
+- Sell function uses checks-effects-interactions pattern to prevent reentrancy
 
 ---
 
-## 3. Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Smart Contracts | Solidity ^0.8.20, OpenZeppelin |
-| Development Framework | Scaffold-ETH 2 (Hardhat + Next.js) |
-| Frontend | Next.js (App Router), wagmi, viem |
-| Testing | Hardhat test suite |
-| Network | BSC Testnet (DEX: PancakeSwap V2) |
-
----
-
-## 4. Setup & Running Locally
+## 2. Setup & Run
 
 ### Prerequisites
 
-- Node.js >= 20.18.3
-- Yarn (v1 or v2+)
-- Git
-- A wallet with BSC Testnet BNB (get from [faucet](https://testnet.bnbchain.org/faucet-smart))
+| Tool | Requirement |
+|---|---|
+| Node.js | ≥ 20.18.3 |
+| Yarn | v1 or v2+ |
+| MetaMask | Configured for BSC Testnet (Chain ID: 97) |
+| BSC Testnet BNB | [hackathon-faucet.vercel.app](https://hackathon-faucet.vercel.app/) |
 
-### Install Dependencies
+### Environment
+
+No additional environment variables are required to run against the existing BSC Testnet deployment. The `TokenFactory` address is already configured in the frontend.
+
+To deploy contracts yourself, copy and fill `.env.example`:
+
+```bash
+cp src/packages/hardhat/.env.example src/packages/hardhat/.env
+# Set DEPLOYER_PRIVATE_KEY=0x...
+```
+
+### Install & Build
 
 ```bash
 git clone <your-repo-url>
@@ -128,112 +128,88 @@ cd vestpump/src
 yarn install
 ```
 
-### Start the Frontend
-
-The frontend is already configured to connect to the BSC Testnet deployment:
+### Run
 
 ```bash
+# Start the frontend (connects to BSC Testnet by default)
 yarn start
 ```
 
 Visit: **http://localhost:3000**
 
-### Deploy Contracts (Optional — Already Deployed)
-
-To redeploy to BSC Testnet yourself:
+To deploy contracts to BSC Testnet yourself (optional — already deployed):
 
 ```bash
-# Set your private key in src/packages/hardhat/.env
-# DEPLOYER_PRIVATE_KEY=0x...
-
-cd src
 yarn deploy --network bscTestnet
 ```
 
-The deploy script is at `src/packages/hardhat/deploy/`.
+### Verify
 
-### Run Tests
+- Open http://localhost:3000 — the app should load and display the "Create Token" page
+- Connect MetaMask (BSC Testnet, Chain ID 97)
+- Confirm the `TokenFactory` address shown in the UI matches `0x3C3d0E397065839e9d01a90bE04d01632062356C`
+
+Run smart contract tests:
 
 ```bash
-cd src
 yarn hardhat:test
 ```
 
 ---
 
-## 5. Demo Guide
+## 3. Demo Guide
 
-Follow these steps to see the full VestPump lifecycle:
+### Access
 
-### Step 1: Connect Wallet
-- Open http://localhost:3000
-- Connect your MetaMask (set to BSC Testnet, Chain ID 97)
-- Ensure you have some BSC Testnet BNB. (Use faucet: https://hackathon-faucet.vercel.app/)
+- **Live frontend:** http://localhost:3000 (after `yarn start`)
+- **TokenFactory on BscScan:** [testnet.bscscan.com](https://testnet.bscscan.com/address/0x3C3d0E397065839e9d01a90bE04d01632062356C)
 
-### Step 2: Create a Token
-- Navigate to the **Create** page
-- Enter a token name and symbol (e.g., "Demo Token" / "DEMO")
-- Click **Launch Token**
-- Approve the transaction — this deploys the full contract suite via `TokenFactory`
-- Note the deployed contract addresses from the `TokenLaunched` event
+### Demo User Journey
 
-### Step 3: Buy Tokens via Bonding Curve
-- Navigate to the token's **Launchpad** page
-- Enter a BNB amount and click **Buy**
-- Observe: tokens are minted and immediately locked in the VestingVault
-- The UI shows your **Locked** and **Claimable Now** balances
+```mermaid
+journey
+    title VestPump Demo Flow
+    section Setup
+      Connect MetaMask to BSC Testnet: 5: User
+      Get test BNB from faucet: 4: User
+    section Create Token
+      Enter token name and symbol: 5: Creator
+      Submit createTokenLaunch tx: 4: Creator
+      5 contracts deployed by factory: 3: System
+    section Buy & Vest
+      Enter BNB amount and buy: 5: Buyer
+      Tokens locked in VestingVault: 3: System
+      View locked vs claimable balance: 5: Buyer
+      Claim unlocked tokens: 5: Buyer
+    section DEX Transition
+      Curve target reached: 3: System
+      Liquidity auto-seeded to PancakeSwap: 3: System
+      Vesting continues with DEX health score: 4: Buyer
+```
 
-### Step 4: Observe Vesting in Action
-- Check your **Claimable Now** balance — it starts low (low health score × low curve completion)
-- The more buyers participate, the higher the health score, the more unlocks
+### Key Actions (Step-by-Step)
 
-### Step 5: Claim Unlocked Tokens
-- Click **Claim** to withdraw currently unlocked tokens
-- The transaction calls `VestingVault.claim()` and transfers vested tokens to your wallet
+1. **Connect wallet** — Open the app, connect MetaMask on BSC Testnet (Chain ID 97)
+2. **Create a token** — Navigate to **Create**, enter a name + symbol (e.g. "Demo Token" / "DEMO"), click **Launch Token**
+3. **Buy tokens** — On the token's Launchpad page, enter a BNB amount and click **Buy** — tokens are minted directly to `VestingVault`
+4. **View your balances** — UI shows **Locked** and **Claimable Now** — observe that Claimable is a fraction of total (health score × curve factor)
+5. **Claim** — Click **Claim** to withdraw currently unlocked tokens to your wallet
+6. **Sell (optional)** — Switch to the **Sell** tab, approve once, then sell back to the curve — tokens are burned and BNB returned at spot price
 
-### Step 6: Sell During Curve (Optional)
-- Switch to the **Sell** tab on the launchpad
-- Enter the amount of tokens to sell, then click **Approve** (first time only)
-- Click **Sell** — tokens are burned, BNB is returned at the current curve spot price
+### Expected Outcomes
 
-### Step 7: Complete the Curve
-- Once 50 BNB is raised, the curve auto-completes
-- Liquidity is automatically seeded to PancakeSwap
-- The oracle switches to DEX-based health scoring
-- Vesting continues with potentially higher unlock rates if the market is healthy
-
----
-
-## 6. Key Contract Addresses (BSC Testnet)
-
-See [`bsc.address`](../bsc.address) for full deployment details.
-
-| Contract | Address |
+| Action | What you see |
 |---|---|
-| TokenFactory | `0x3C3d0E397065839e9d01a90bE04d01632062356C` |
-| PancakeSwap V2 Router | `0xD99D1c33F9fC3444f8101754aBC46c52416550D1` |
+| Launch token | 5 contracts deployed; addresses appear in UI below the form |
+| Buy | Locked balance increases; Claimable Now is a portion of locked (not 100%) |
+| Claim | Wallet token balance increases; Claimable drops to 0 |
+| Sell | Wallet BNB balance increases; token supply decreases |
 
----
+### Troubleshooting
 
-## 7. Project Source Layout
-
-```
-src/
-├── packages/
-│   ├── hardhat/
-│   │   ├── contracts/
-│   │   │   ├── PumpToken.sol
-│   │   │   ├── BondingCurveSale.sol
-│   │   │   ├── VestingVault.sol
-│   │   │   ├── MarketHealthOracle.sol
-│   │   │   ├── LiquidityBootstrapper.sol
-│   │   │   └── TokenFactory.sol
-│   │   ├── deploy/
-│   │   ├── test/
-│   │   └── hardhat.config.ts
-│   └── nextjs/
-│       └── app/
-│           ├── page.tsx           ← Home / token list
-│           ├── create/            ← Token creation page
-│           └── launchpad/         ← Token buy/sell/claim page
-```
+| Issue | Fix |
+|---|---|
+| MetaMask shows wrong network | Switch to BSC Testnet (Chain ID 97, RPC: `https://data-seed-prebsc-1-s1.binance.org:8545/`) |
+| No test BNB | Get from [hackathon-faucet.vercel.app](https://hackathon-faucet.vercel.app/) |
+| "Sell" reverts | Click **Approve** first on the Sell tab before selling |
+| Claimable is 0 | Expected early on — health score × curve factor is low; buy more or wait for more buyers |
