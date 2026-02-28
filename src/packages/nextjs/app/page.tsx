@@ -91,8 +91,7 @@ const Home: NextPage = () => {
             <span className="block text-xl opacity-80">Market-Driven Token Launches</span>
           </h1>
           <p className="mt-4 text-lg">
-            Fair launches with <strong>immediate, market-driven vesting</strong>. Stop early dumping with bonding curves
-            that unlock your supply based on real market health, not arbitrary timers.
+            Stop early dumping with bonding curves that unlock supply based on real market health, not arbitrary timers.
           </p>
         </div>
 
