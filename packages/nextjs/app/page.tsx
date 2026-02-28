@@ -28,12 +28,14 @@ const Home: NextPage = () => {
     if (!tokenName || !tokenSymbol || !publicClient) return;
     setIsLaunching(true);
     try {
-      // 1. Send the transaction
+      // 1. Send the transaction — pass an explicit gas limit so MetaMask skips
+      //    eth_estimateGas (which fails on throttled BSC testnet public RPC nodes)
       const txHash = await writeContractAsync({
         address: TOKEN_FACTORY_ADDRESS,
         abi: TOKEN_FACTORY_ABI,
         functionName: "createTokenLaunch",
         args: [tokenName, tokenSymbol],
+        gas: 8_000_000n, // 5 contracts deploy in sequence; 63/64 EIP-150 rule needs ~7M total
       });
 
       // 2. Wait for the receipt
@@ -74,6 +76,7 @@ const Home: NextPage = () => {
       router.push("/launchpad");
     } catch (e) {
       console.error("Error launching token:", e);
+      alert("Launch failed — BSC Testnet RPC may be busy. Please try again in a moment.");
     } finally {
       setIsLaunching(false);
     }

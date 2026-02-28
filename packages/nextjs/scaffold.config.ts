@@ -22,9 +22,14 @@ const scaffoldConfig = {
 
   alchemyApiKey: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || DEFAULT_ALCHEMY_API_KEY,
 
-  // Use Binance's public RPC for BSC testnet (more reliable than the generic http() fallback)
+  // BSC Testnet public RPCs — rotate if one is throttled:
+  //   https://data-seed-prebsc-1-s1.binance.org:8545
+  //   https://data-seed-prebsc-2-s1.binance.org:8545
+  //   https://data-seed-prebsc-1-s2.binance.org:8545
+  //   https://data-seed-prebsc-2-s3.binance.org:8545
+  //   https://bsc-testnet-rpc.publicnode.com
   rpcOverrides: {
-    [chains.bscTestnet.id]: "https://data-seed-prebsc-1-s1.binance.org:8545",
+    [chains.bscTestnet.id]: "https://bsc-testnet-rpc.publicnode.com",
   },
 
   walletConnectProjectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || "3a8170812b534d0ff9d794f19a901d64",

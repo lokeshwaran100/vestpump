@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { NextPage } from "next";
-import { formatEther, parseEther } from "viem";
+import { formatEther, maxUint256, parseEther } from "viem";
 import { useAccount, useBalance, usePublicClient, useReadContract, useWriteContract } from "wagmi";
 import {
   ArrowDownIcon,
@@ -124,8 +124,8 @@ const Launchpad: NextPage = () => {
   const maxSupply = 1_000_000_000;
   const tokensSoldNum = tokensSold ? Number(formatEther(tokensSold as bigint)) : 0;
   const progressPercent = Math.min((tokensSoldNum / maxSupply) * 100, 100);
-  const amountBigInt = amount ? parseEther(amount) : 0n;
-  const needsApproval = mode === "sell" && allowance !== undefined && amountBigInt > 0n && allowance < amountBigInt;
+  // Only require approval once — when allowance is zero (unlimited approval is granted on first approve)
+  const needsApproval = mode === "sell" && allowance !== undefined && allowance === 0n;
   const claimableNum = unlockedAmount ? Number(formatEther(unlockedAmount as bigint)) : 0;
 
   // Estimate output for display (simplified spot price calc)
@@ -141,18 +141,19 @@ const Launchpad: NextPage = () => {
         : null;
 
   const handleApprove = async () => {
-    if (!tokenAddress || !spenderForSell || !amountBigInt || !publicClient) return;
+    if (!tokenAddress || !spenderForSell || !publicClient) return;
     setIsApproving(true);
     try {
+      // Approve unlimited so this step is only needed once
       const txHash = await writeContractAsync({
         address: tokenAddress,
         abi: Erc20Abi,
         functionName: "approve",
-        args: [spenderForSell, amountBigInt],
+        args: [spenderForSell, maxUint256],
       });
       await publicClient.waitForTransactionReceipt({ hash: txHash });
       await refetchAllowance();
-      notification.success("Approval granted!");
+      notification.success("Approval granted! You can now sell anytime.");
     } catch (e) {
       console.error(e);
       notification.error("Approval failed");
@@ -423,18 +424,12 @@ const Launchpad: NextPage = () => {
                 </div>
                 {needsApproval ? (
                   <div className="flex flex-col gap-2">
-                    <button
-                      className="btn btn-warning w-full text-lg"
-                      onClick={handleApprove}
-                      disabled={isApproving || !amount}
-                    >
-                      {isApproving ? (
-                        <span className="loading loading-spinner"></span>
-                      ) : (
-                        `Approve ${amount || "?"} tokens`
-                      )}
+                    <button className="btn btn-warning w-full text-lg" onClick={handleApprove} disabled={isApproving}>
+                      {isApproving ? <span className="loading loading-spinner"></span> : "Approve (one-time)"}
                     </button>
-                    <p className="text-xs text-center opacity-60">Step 1 of 2 — Approve, then Sell</p>
+                    <p className="text-xs text-center opacity-60">
+                      One-time approval required — you won&apos;t be asked again
+                    </p>
                   </div>
                 ) : (
                   <button
