@@ -93,4 +93,23 @@ describe("VestPump Core Logic", function () {
         // Second immediate claim should fail
         await expect(vault.connect(buyer1).claim()).to.be.revertedWith("No tokens to claim right now");
     });
+
+    it("Should correctly report calculateClaimableAmount after a partial claim", async function () {
+        const buyAmount = ethers.parseEther("1"); // 1 BNB
+        await sale.connect(buyer1).buyTokens({ value: buyAmount });
+
+        const totalUnlocked = await vault.calculateUnlockedAmount(buyer1.address);
+        expect(totalUnlocked).to.be.gt(0);
+
+        const initialClaimable = await vault.calculateClaimableAmount(buyer1.address);
+        expect(initialClaimable).to.equal(totalUnlocked);
+
+        await vault.connect(buyer1).claim();
+
+        const claimableAfter = await vault.calculateClaimableAmount(buyer1.address);
+        expect(claimableAfter).to.equal(0);
+
+        const unlockedAfter = await vault.calculateUnlockedAmount(buyer1.address);
+        expect(unlockedAfter).to.equal(totalUnlocked); // Unlocked hasn't changed, but claimable has
+    });
 });

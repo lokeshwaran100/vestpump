@@ -73,6 +73,14 @@ const LaunchpadContent = () => {
   });
 
   // 4. Read vault state for user
+  const { data: claimableAmount, refetch: refetchClaimable } = useReadContract({
+    address: vaultAddress,
+    abi: VestingVaultAbi,
+    functionName: "calculateClaimableAmount",
+    args: [connectedAddress || "0x0000000000000000000000000000000000000000"],
+    query: { enabled: !!vaultAddress && !!connectedAddress, staleTime: 0 },
+  });
+
   const { data: unlockedAmount, refetch: refetchUnlocked } = useReadContract({
     address: vaultAddress,
     abi: VestingVaultAbi,
@@ -118,6 +126,7 @@ const LaunchpadContent = () => {
       refetchTokensSold(),
       refetchSaleEnded(),
       refetchHealth(),
+      refetchClaimable(),
       refetchUnlocked(),
       refetchLocked(),
       refetchBalance(),
@@ -131,7 +140,8 @@ const LaunchpadContent = () => {
   const progressPercent = Math.min((tokensSoldNum / maxSupply) * 100, 100);
   // Only require approval once — when allowance is zero (unlimited approval is granted on first approve)
   const needsApproval = mode === "sell" && allowance !== undefined && allowance === 0n;
-  const claimableNum = unlockedAmount ? Number(formatEther(unlockedAmount as bigint)) : 0;
+  const claimableNum = claimableAmount ? Number(formatEther(claimableAmount as bigint)) : 0;
+  const unlockedNum = unlockedAmount ? Number(formatEther(unlockedAmount as bigint)) : 0;
 
   // Estimate output for display (simplified spot price calc)
   const INITIAL_PRICE = 0.00000001; // BNB per token
@@ -299,9 +309,8 @@ const LaunchpadContent = () => {
           {/* Three-tab header: Buy | Sell | Claim */}
           <div className="flex">
             <button
-              className={`flex-1 py-4 text-base font-bold transition-colors ${
-                mode === "buy" ? "bg-success text-success-content" : "bg-base-200 hover:bg-base-300 opacity-60"
-              }`}
+              className={`flex-1 py-4 text-base font-bold transition-colors ${mode === "buy" ? "bg-success text-success-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+                }`}
               onClick={() => {
                 setMode("buy");
                 setAmount("");
@@ -310,9 +319,8 @@ const LaunchpadContent = () => {
               Buy
             </button>
             <button
-              className={`flex-1 py-4 text-base font-bold transition-colors ${
-                mode === "sell" ? "bg-error text-error-content" : "bg-base-200 hover:bg-base-300 opacity-60"
-              }`}
+              className={`flex-1 py-4 text-base font-bold transition-colors ${mode === "sell" ? "bg-error text-error-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+                }`}
               onClick={() => {
                 setMode("sell");
                 setAmount("");
@@ -321,9 +329,8 @@ const LaunchpadContent = () => {
               Sell
             </button>
             <button
-              className={`flex-1 py-4 text-base font-bold transition-colors ${
-                mode === "claim" ? "bg-secondary text-secondary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
-              }`}
+              className={`flex-1 py-4 text-base font-bold transition-colors ${mode === "claim" ? "bg-secondary text-secondary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+                }`}
               onClick={() => {
                 setMode("claim");
                 setAmount("");
@@ -421,15 +428,6 @@ const LaunchpadContent = () => {
                     <span>≈ {estimatedOut} BNB (est. at spot price)</span>
                   </div>
                 )}
-                <div className="stats bg-base-200 shadow w-full mb-4">
-                  <div className="stat py-2 place-items-center">
-                    <div className="stat-title text-xs">In Wallet</div>
-                    <div className="stat-value text-error text-xl">
-                      {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
-                    </div>
-                    <div className="stat-desc">{walletBalance?.symbol || "tokens"}</div>
-                  </div>
-                </div>
                 {needsApproval ? (
                   <div className="flex flex-col gap-2">
                     <button className="btn btn-warning w-full text-lg" onClick={handleApprove} disabled={isApproving}>
@@ -459,31 +457,17 @@ const LaunchpadContent = () => {
                     <LockClosedIcon className="w-5 h-5 text-secondary" />
                     <span className="font-bold text-lg">Vesting Status</span>
                   </div>
-                  <div className="badge badge-accent gap-1">
-                    Health: {healthScore ? (Number(healthScore) / 100).toFixed(0) : "0"}%
-                  </div>
                 </div>
                 <p className="text-sm opacity-70 mb-4">
-                  Tokens unlock based on market health. Claim to your wallet, then switch to the <strong>Sell</strong>{" "}
-                  tab.
+                  Tokens unlock based on market health.
                 </p>
                 <div className="stats shadow bg-base-200 w-full mb-4">
+
                   <div className="stat place-items-center py-2">
-                    <div className="stat-title text-xs">Still Locked</div>
-                    <div className="stat-value text-secondary text-xl">
-                      {lockedAmount ? Number(formatEther(lockedAmount as bigint)).toLocaleString() : "0"}
-                    </div>
-                  </div>
-                  <div className="stat place-items-center py-2">
-                    <div className="stat-title text-xs">Claimable Now</div>
+                    <div className="stat-title text-xs">Claimable</div>
                     <div className="stat-value text-primary text-xl">{claimableNum.toLocaleString()}</div>
                   </div>
-                  <div className="stat place-items-center py-2">
-                    <div className="stat-title text-xs">In Wallet</div>
-                    <div className="stat-value text-accent text-xl">
-                      {walletBalance ? Number(walletBalance.formatted).toLocaleString() : "0"}
-                    </div>
-                  </div>
+
                 </div>
                 <button
                   className="btn btn-secondary w-full text-lg"
@@ -514,8 +498,8 @@ const LaunchpadContent = () => {
               </p>
             </div>
             <div>
-              <p className="text-xs opacity-60 mb-0.5">Claimable</p>
-              <p className="font-bold text-primary text-sm">{claimableNum.toLocaleString()}</p>
+              <p className="text-xs opacity-60 mb-0.5">Claimable / Unlocked</p>
+              <p className="font-bold text-primary text-sm">{claimableNum.toLocaleString()} / {unlockedNum.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-xs opacity-60 mb-0.5">In Wallet</p>
@@ -525,7 +509,7 @@ const LaunchpadContent = () => {
             </div>
           </div>
           <p className="text-xs opacity-50 mt-3">
-            💡 Claim tokens → switch to <strong>Sell</strong> tab → sell instantly.
+            💡 Claim tokens → Switch to <strong>Sell</strong> tab → Sell instantly
           </p>
         </div>
       </div>

@@ -263,6 +263,13 @@ export const VestingVaultAbi = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "address", name: "beneficiary", type: "address" }],
+    name: "calculateClaimableAmount",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
   { inputs: [], name: "claim", outputs: [], stateMutability: "nonpayable", type: "function" },
   {
     inputs: [{ internalType: "address", name: "beneficiary", type: "address" }],

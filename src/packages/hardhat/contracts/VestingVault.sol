@@ -78,14 +78,22 @@ contract VestingVault is Ownable {
     }
 
     /**
+     * @dev Calculates the current claimable amount (unlocked - already claimed).
+     */
+    function calculateClaimableAmount(address beneficiary) public view returns (uint256) {
+        VestingSchedule memory schedule = schedules[beneficiary];
+        uint256 totalUnlocked = calculateUnlockedAmount(beneficiary);
+        return totalUnlocked - schedule.amountClaimed;
+    }
+
+    /**
      * @dev Allows users to claim their vested tokens.
      */
     function claim() external {
         VestingSchedule storage schedule = schedules[msg.sender];
         require(schedule.totalAllocated > 0, "No allocation");
 
-        uint256 totalUnlocked = calculateUnlockedAmount(msg.sender);
-        uint256 claimable = totalUnlocked - schedule.amountClaimed;
+        uint256 claimable = calculateClaimableAmount(msg.sender);
 
         require(claimable > 0, "No tokens to claim right now");
 
