@@ -16,7 +16,7 @@ export const metadata = {
 const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning data-theme="vestpump" className={inter.className}>
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider forcedTheme="vestpump">
           <ScaffoldEthAppWithProviders>{children}</ScaffoldEthAppWithProviders>
         </ThemeProvider>
