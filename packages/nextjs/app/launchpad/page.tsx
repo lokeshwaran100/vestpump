@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { NextPage } from "next";
 import { formatEther, maxUint256, parseEther } from "viem";
 import { useAccount, useBalance, usePublicClient, useReadContract, useWriteContract } from "wagmi";
@@ -13,7 +14,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { BondingCurveSaleAbi, Erc20Abi, MarketHealthOracleAbi, PancakeRouterAbi, VestingVaultAbi } from "~~/utils/abis";
 import { notification } from "~~/utils/scaffold-eth";
-import { type TokenLaunch, fetchLatestTokenLaunch } from "~~/utils/supabase";
+import { type TokenLaunch, fetchLatestTokenLaunch, fetchTokenLaunchById } from "~~/utils/supabase";
 
 // PancakeSwap BSC Testnet Router
 const PANCAKE_ROUTER_TESTNET = "0xD99D1c33F9fC3444f8101754aBC46c52416550d1" as const;
@@ -29,15 +30,19 @@ const Launchpad: NextPage = () => {
   const [amount, setAmount] = useState("");
   const [isApproving, setIsApproving] = useState(false);
 
-  // 1. Fetch the latest token launch from Supabase (fast — no blockchain scanning)
+  const searchParams = useSearchParams();
+
+  // 1. Fetch the token launch from Supabase:
+  //    - If ?id= is in the URL, load that specific token (selected from the tokens page)
+  //    - Otherwise fall back to the latest launch
   const [latestLaunch, setLatestLaunch] = useState<TokenLaunch | null>(null);
   const [launchLoading, setLaunchLoading] = useState(true);
 
   useEffect(() => {
-    fetchLatestTokenLaunch()
-      .then(data => setLatestLaunch(data))
-      .finally(() => setLaunchLoading(false));
-  }, []);
+    const idParam = searchParams.get("id");
+    const fetcher = idParam ? fetchTokenLaunchById(Number(idParam)) : fetchLatestTokenLaunch();
+    fetcher.then(data => setLatestLaunch(data)).finally(() => setLaunchLoading(false));
+  }, [searchParams]);
 
   const tokenAddress = latestLaunch?.token_address as `0x${string}` | undefined;
   const saleAddress = latestLaunch?.sale_address as `0x${string}` | undefined;
@@ -267,7 +272,10 @@ const Launchpad: NextPage = () => {
     <div className="flex flex-col items-center py-10 px-4 bg-base-200 min-h-screen">
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-2">Token Launch Dashboard</h1>
+        <h1 className="text-4xl font-bold mb-1">
+          {latestLaunch.token_name}{" "}
+          <span className="text-primary opacity-70 text-2xl font-mono">({latestLaunch.token_symbol})</span>
+        </h1>
         {/* Phase badge */}
         {saleEnded ? (
           <div className="badge badge-success badge-lg gap-1 p-3">

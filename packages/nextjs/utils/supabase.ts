@@ -82,3 +82,21 @@ export async function fetchLatestTokenLaunch(): Promise<TokenLaunch | null> {
     return null;
   }
 }
+/** Fetch a specific token launch by its Supabase row ID */
+export async function fetchTokenLaunchById(id: number): Promise<TokenLaunch | null> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/token_launches?id=eq.${id}&select=*`, {
+      headers,
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("Supabase fetchTokenLaunchById error:", res.status, err);
+      return null;
+    }
+    const data = await res.json();
+    return data?.[0] ?? null;
+  } catch (e) {
+    console.error("Supabase fetchTokenLaunchById network error:", e);
+    return null;
+  }
+}

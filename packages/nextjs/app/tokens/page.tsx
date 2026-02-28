@@ -134,7 +134,7 @@ function TokenCard({ launch, index }: { launch: TokenLaunch; index: number }) {
 
         {/* CTA */}
         <div className="mt-auto pt-3">
-          <Link href="/launchpad" className="btn btn-primary btn-sm w-full gap-1">
+          <Link href={`/launchpad?id=${launch.id}`} className="btn btn-primary btn-sm w-full gap-1">
             Open Launchpad
             <ArrowTopRightOnSquareIcon className="w-4 h-4" />
           </Link>
