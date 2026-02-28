@@ -524,7 +524,7 @@ const LaunchpadContent = () => {
             </div>
           </div>
           <p className="text-xs opacity-50 mt-3">
-            💡 Claim tokens → Switch to <strong>Sell</strong> tab → Sell instantly
+            💡 Claim tokens → Switch to <strong>Sell</strong> tab to Sell
           </p>
         </div>
       </div>
