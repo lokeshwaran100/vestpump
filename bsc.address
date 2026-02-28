@@ -18,6 +18,6 @@
       "description": "External PancakeSwap V2 router used by LiquidityBootstrapper to seed DEX liquidity when the bonding curve completes."
     }
   ],
-  "frontendUrl": "http://localhost:3000",
+  "frontendUrl": "https://vestpump.vercel.app",
   "notes": "Each call to TokenFactory.createTokenLaunch(name, symbol) deploys a fresh suite of 5 contracts (PumpToken, BondingCurveSale, VestingVault, MarketHealthOracle, LiquidityBootstrapper). Their addresses are emitted in the TokenLaunched event. Get BSC Testnet BNB from https://hackathon-faucet.vercel.app/"
 }
