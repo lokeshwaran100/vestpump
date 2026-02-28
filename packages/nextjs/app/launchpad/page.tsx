@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { NextPage } from "next";
 import { formatEther, parseEther } from "viem";
 import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
@@ -11,10 +11,9 @@ import {
   CheckCircleIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
-import deployedContracts from "~~/contracts/deployedContracts";
-import { useScaffoldEventHistory } from "~~/hooks/scaffold-eth";
 import { BondingCurveSaleAbi, Erc20Abi, MarketHealthOracleAbi, PancakeRouterAbi, VestingVaultAbi } from "~~/utils/abis";
 import { notification } from "~~/utils/scaffold-eth";
+import { type TokenLaunch, fetchLatestTokenLaunch } from "~~/utils/supabase";
 
 // PancakeSwap BSC Testnet Router
 const PANCAKE_ROUTER_TESTNET = "0xD99D1c33F9fC3444f8101754aBC46c52416550d1" as const;
@@ -29,24 +28,20 @@ const Launchpad: NextPage = () => {
   const [amount, setAmount] = useState("");
   const [isApproving, setIsApproving] = useState(false);
 
-  // 1. Get launched token addresses from Factory event
-  // Use the deploy block so we don't scan from block 0 on live chains
-  const chainId = 97; // BSC Testnet
-  const factoryDeployBlock = BigInt(
-    (deployedContracts as Record<number, { TokenFactory?: { deployedOnBlock?: number } }>)?.[chainId]?.TokenFactory
-      ?.deployedOnBlock ?? 0,
-  );
-  const { data: events, isLoading: eventsLoading } = useScaffoldEventHistory({
-    contractName: "TokenFactory",
-    eventName: "TokenLaunched",
-    fromBlock: factoryDeployBlock,
-  });
+  // 1. Fetch the latest token launch from Supabase (fast — no blockchain scanning)
+  const [latestLaunch, setLatestLaunch] = useState<TokenLaunch | null>(null);
+  const [launchLoading, setLaunchLoading] = useState(true);
 
-  const latestLaunch = events && events.length > 0 ? events[events.length - 1] : null;
-  const tokenAddress = latestLaunch?.args?.tokenAddress as `0x${string}` | undefined;
-  const saleAddress = latestLaunch?.args?.saleAddress as `0x${string}` | undefined;
-  const vaultAddress = latestLaunch?.args?.vaultAddress as `0x${string}` | undefined;
-  const oracleAddress = latestLaunch?.args?.oracleAddress as `0x${string}` | undefined;
+  useEffect(() => {
+    fetchLatestTokenLaunch(97)
+      .then(data => setLatestLaunch(data))
+      .finally(() => setLaunchLoading(false));
+  }, []);
+
+  const tokenAddress = latestLaunch?.token_address as `0x${string}` | undefined;
+  const saleAddress = latestLaunch?.sale_address as `0x${string}` | undefined;
+  const vaultAddress = latestLaunch?.vault_address as `0x${string}` | undefined;
+  const oracleAddress = latestLaunch?.oracle_address as `0x${string}` | undefined;
 
   // 2. Read sale state
   const { data: tokensSold } = useReadContract({
@@ -228,7 +223,7 @@ const Launchpad: NextPage = () => {
     }
   };
 
-  if (eventsLoading) {
+  if (launchLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <span className="loading loading-spinner loading-lg text-primary"></span>

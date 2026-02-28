@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { NextPage } from "next";
 import { formatEther } from "viem";
@@ -11,22 +12,17 @@ import {
   LockClosedIcon,
   RocketLaunchIcon,
 } from "@heroicons/react/24/outline";
-import deployedContracts from "~~/contracts/deployedContracts";
-import { useScaffoldEventHistory } from "~~/hooks/scaffold-eth";
 import { BondingCurveSaleAbi } from "~~/utils/abis";
+import { type TokenLaunch, fetchTokenLaunches } from "~~/utils/supabase";
 
-// ── Individual token card — reads live data for its own sale contract ──────
-function TokenCard({
-  index,
-  tokenAddress,
-  saleAddress,
-  vaultAddress,
-}: {
-  index: number;
-  tokenAddress: `0x${string}`;
-  saleAddress: `0x${string}`;
-  vaultAddress: `0x${string}`;
-}) {
+const CHAIN_ID = 97;
+
+// ── Individual token card — reads live on-chain stats for its sale contract ──
+function TokenCard({ launch, index }: { launch: TokenLaunch; index: number }) {
+  const saleAddress = launch.sale_address as `0x${string}`;
+  const vaultAddress = launch.vault_address as `0x${string}`;
+  const tokenAddress = launch.token_address as `0x${string}`;
+
   const { data: tokensSold } = useReadContract({
     address: saleAddress,
     abi: BondingCurveSaleAbi,
@@ -56,7 +52,6 @@ function TokenCard({
   const progress = Math.min((soldNum / MAX_SUPPLY) * 100, 100);
   const bnbNum = bnbRaised ? Number(formatEther(bnbRaised as bigint)) : 0;
 
-  // Deterministic pastel gradient per card index
   const gradients = [
     "from-violet-500/20 to-indigo-500/10",
     "from-emerald-500/20 to-teal-500/10",
@@ -68,7 +63,7 @@ function TokenCard({
   const gradient = gradients[index % gradients.length];
 
   return (
-    <div className={`bg-base-100 border border-base-300 rounded-2xl shadow-lg overflow-hidden flex flex-col`}>
+    <div className="bg-base-100 border border-base-300 rounded-2xl shadow-lg overflow-hidden flex flex-col">
       {/* Coloured top strip */}
       <div className={`bg-gradient-to-r ${gradient} h-2`} />
 
@@ -80,7 +75,10 @@ function TokenCard({
               <RocketLaunchIcon className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="font-bold text-base leading-tight">Token #{index + 1}</p>
+              <p className="font-bold text-base leading-tight">
+                {launch.token_name}{" "}
+                <span className="text-xs font-mono text-primary opacity-70">({launch.token_symbol})</span>
+              </p>
               <p className="text-xs font-mono opacity-50">
                 {tokenAddress.slice(0, 8)}…{tokenAddress.slice(-6)}
               </p>
@@ -126,7 +124,7 @@ function TokenCard({
           </div>
         </div>
 
-        {/* Contract addresses (collapsed display) */}
+        {/* Contract addresses */}
         <div className="flex flex-col gap-1 mt-1">
           <div className="flex items-center gap-1 text-xs opacity-50">
             <LockClosedIcon className="w-3 h-3" />
@@ -150,15 +148,14 @@ function TokenCard({
 
 // ── Page ────────────────────────────────────────────────────────────────────
 const TokensPage: NextPage = () => {
-  const factoryDeployBlock = BigInt(
-    (deployedContracts as Record<number, { TokenFactory?: { deployedOnBlock?: number } }>)?.[97]?.TokenFactory
-      ?.deployedOnBlock ?? 0,
-  );
-  const { data: events, isLoading } = useScaffoldEventHistory({
-    contractName: "TokenFactory",
-    eventName: "TokenLaunched",
-    fromBlock: factoryDeployBlock,
-  });
+  const [launches, setLaunches] = useState<TokenLaunch[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTokenLaunches(CHAIN_ID)
+      .then(data => setLaunches(data))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   if (isLoading) {
     return (
@@ -168,8 +165,6 @@ const TokensPage: NextPage = () => {
       </div>
     );
   }
-
-  const launches = events ?? [];
 
   return (
     <div className="flex flex-col items-center py-10 px-4 bg-base-200 min-h-screen">
@@ -207,21 +202,9 @@ const TokensPage: NextPage = () => {
       {/* Token grid */}
       {launches.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl">
-          {[...launches].reverse().map((event, i) => {
-            const tokenAddress = event.args?.tokenAddress as `0x${string}` | undefined;
-            const saleAddress = event.args?.saleAddress as `0x${string}` | undefined;
-            const vaultAddress = event.args?.vaultAddress as `0x${string}` | undefined;
-            if (!tokenAddress || !saleAddress || !vaultAddress) return null;
-            return (
-              <TokenCard
-                key={tokenAddress}
-                index={launches.length - 1 - i}
-                tokenAddress={tokenAddress}
-                saleAddress={saleAddress}
-                vaultAddress={vaultAddress}
-              />
-            );
-          })}
+          {launches.map((launch, i) => (
+            <TokenCard key={launch.id} launch={launch} index={i} />
+          ))}
         </div>
       )}
     </div>

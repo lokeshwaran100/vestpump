@@ -3,30 +3,74 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { NextPage } from "next";
+import { parseEventLogs } from "viem";
+import { usePublicClient, useWriteContract } from "wagmi";
 import { ChartBarIcon, InformationCircleIcon, LockClosedIcon, RocketLaunchIcon } from "@heroicons/react/24/outline";
-import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
+import deployedContracts from "~~/contracts/deployedContracts";
+import { saveTokenLaunch } from "~~/utils/supabase";
+
+// TokenFactory ABI (just the parts we need)
+const TOKEN_FACTORY_ABI = deployedContracts[97].TokenFactory.abi;
+const TOKEN_FACTORY_ADDRESS = deployedContracts[97].TokenFactory.address;
+const CHAIN_ID = 97;
 
 const Home: NextPage = () => {
   const router = useRouter();
+  const publicClient = usePublicClient({ chainId: CHAIN_ID });
 
-  // State for token creation form
   const [tokenName, setTokenName] = useState("");
   const [tokenSymbol, setTokenSymbol] = useState("");
   const [isLaunching, setIsLaunching] = useState(false);
 
-  const { writeContractAsync: writeTokenFactory } = useScaffoldWriteContract("TokenFactory");
+  const { writeContractAsync } = useWriteContract();
 
   const handleLaunch = async () => {
-    if (!tokenName || !tokenSymbol) return;
+    if (!tokenName || !tokenSymbol || !publicClient) return;
     setIsLaunching(true);
     try {
-      await writeTokenFactory({
+      // 1. Send the transaction
+      const txHash = await writeContractAsync({
+        address: TOKEN_FACTORY_ADDRESS,
+        abi: TOKEN_FACTORY_ABI,
         functionName: "createTokenLaunch",
         args: [tokenName, tokenSymbol],
       });
+
+      // 2. Wait for the receipt
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+      // 3. Parse the TokenLaunched event from the receipt logs
+      const logs = parseEventLogs({
+        abi: TOKEN_FACTORY_ABI,
+        logs: receipt.logs,
+        eventName: "TokenLaunched",
+      });
+
+      if (logs.length > 0) {
+        const event = logs[0];
+        const args = event.args as {
+          tokenAddress: string;
+          saleAddress: string;
+          vaultAddress: string;
+          oracleAddress: string;
+          bootstrapperAddress: string;
+        };
+
+        // 4. Save to Supabase
+        await saveTokenLaunch({
+          chain_id: CHAIN_ID,
+          token_name: tokenName,
+          token_symbol: tokenSymbol,
+          token_address: args.tokenAddress,
+          sale_address: args.saleAddress,
+          vault_address: args.vaultAddress,
+          oracle_address: args.oracleAddress ?? null,
+          bootstrapper_address: args.bootstrapperAddress ?? null,
+        });
+      }
+
       setTokenName("");
       setTokenSymbol("");
-      // Navigate to launchpad so the user can interact with their new token
       router.push("/launchpad");
     } catch (e) {
       console.error("Error launching token:", e);
