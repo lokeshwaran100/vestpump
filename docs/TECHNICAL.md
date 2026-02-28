@@ -147,7 +147,7 @@ yarn deploy --network bscTestnet
 
 - Open http://localhost:3000 — the app should load and display the "Create Token" page
 - Connect MetaMask (BSC Testnet, Chain ID 97)
-- Confirm the `TokenFactory` address shown in the UI matches `0x3C3d0E397065839e9d01a90bE04d01632062356C`
+- Confirm the `TokenFactory` address shown in the UI matches `0x94737C7b4EE0860e7142988590d23eFAC32072Ef`
 
 Run smart contract tests:
 
@@ -162,7 +162,7 @@ yarn hardhat:test
 ### Access
 
 - **Live frontend:** http://localhost:3000 (after `yarn start`)
-- **TokenFactory on BscScan:** [testnet.bscscan.com](https://testnet.bscscan.com/address/0x3C3d0E397065839e9d01a90bE04d01632062356C)
+- **TokenFactory on BscScan:** [testnet.bscscan.com](https://testnet.bscscan.com/address/0x94737C7b4EE0860e7142988590d23eFAC32072Ef)
 
 ### Demo User Journey
 

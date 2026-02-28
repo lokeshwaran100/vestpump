@@ -4,8 +4,8 @@
   "contracts": [
     {
       "name": "TokenFactory",
-      "address": "0x3C3d0E397065839e9d01a90bE04d01632062356C",
-      "explorerLink": "https://testnet.bscscan.com/address/0x3C3d0E397065839e9d01a90bE04d01632062356C",
+      "address": "0x94737C7b4EE0860e7142988590d23eFAC32072Ef",
+      "explorerLink": "https://testnet.bscscan.com/address/0x94737C7b4EE0860e7142988590d23eFAC32072Ef",
       "description": "One-transaction launcher: deploys PumpToken, BondingCurveSale, VestingVault, MarketHealthOracle, and LiquidityBootstrapper for every new token launch.",
       "deploymentTx": "0xf3b0dd9c29eea99f682756013fc02bd805f4ac38fd1364041ace9f2e3de3856a",
       "deployer": "0x2d34A0133f43d807574eC7807d77A17f67e68B48",

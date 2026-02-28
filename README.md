@@ -121,7 +121,7 @@ See **[docs/TECHNICAL.md](docs/TECHNICAL.md)** for full setup, contract deployme
 
 | Contract | Address |
 |---|---|
-| **TokenFactory** | [`0x3C3d0E397065839e9d01a90bE04d01632062356C`](https://testnet.bscscan.com/address/0x3C3d0E397065839e9d01a90bE04d01632062356C) |
+| **TokenFactory** | [`0x94737C7b4EE0860e7142988590d23eFAC32072Ef`](https://testnet.bscscan.com/address/0x94737C7b4EE0860e7142988590d23eFAC32072Ef) |
 
 See **[bsc.address](bsc.address)** for full deployment info.
 
