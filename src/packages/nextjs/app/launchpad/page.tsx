@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { NextPage } from "next";
 import { formatEther, maxUint256, parseEther } from "viem";
@@ -23,7 +23,7 @@ const WBNB_TESTNET = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd" as const;
 
 type SwapMode = "buy" | "sell" | "claim";
 
-const Launchpad: NextPage = () => {
+const LaunchpadContent = () => {
   const { address: connectedAddress } = useAccount();
   const publicClient = usePublicClient({ chainId: 97 });
   const [mode, setMode] = useState<SwapMode>("buy");
@@ -530,6 +530,14 @@ const Launchpad: NextPage = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const Launchpad: NextPage = () => {
+  return (
+    <Suspense>
+      <LaunchpadContent />
+    </Suspense>
   );
 };
 
