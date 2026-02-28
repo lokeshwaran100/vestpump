@@ -1,6 +1,14 @@
-// Supabase project details
-const SUPABASE_URL = "https://yechpgwatchdtnigkqtw.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_4Hm8fICMdKh_gsAohqA8TA_WdPJ6UMa";
+// Supabase credentials — set these in .env.local (never commit real keys).
+// Copy src/packages/nextjs/.env.local.example → .env.local and fill in values.
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn(
+    "[supabase] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set. " +
+    "Copy src/packages/nextjs/.env.local.example to .env.local and fill in your Supabase credentials.",
+  );
+}
 
 // Row type matching the token_launches table
 export type TokenLaunch = {
