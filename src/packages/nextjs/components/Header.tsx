@@ -42,9 +42,10 @@ export const HeaderMenuLinks = () => {
               href={href}
               passHref
               className={`relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200
-                ${isActive
-                  ? "text-white bg-violet-600/20 border border-violet-500/40"
-                  : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+                ${
+                  isActive
+                    ? "text-white bg-violet-600/20 border border-violet-500/40"
+                    : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
                 }`}
             >
               {icon}

@@ -316,8 +316,9 @@ const LaunchpadContent = () => {
           {/* Three-tab header: Buy | Sell | Claim */}
           <div className="flex">
             <button
-              className={`flex-1 py-4 text-base font-bold transition-colors ${mode === "buy" ? "bg-success text-success-content" : "bg-base-200 hover:bg-base-300 opacity-60"
-                }`}
+              className={`flex-1 py-4 text-base font-bold transition-colors ${
+                mode === "buy" ? "bg-success text-success-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+              }`}
               onClick={() => {
                 setMode("buy");
                 setAmount("");
@@ -326,8 +327,9 @@ const LaunchpadContent = () => {
               Buy
             </button>
             <button
-              className={`flex-1 py-4 text-base font-bold transition-colors ${mode === "sell" ? "bg-error text-error-content" : "bg-base-200 hover:bg-base-300 opacity-60"
-                }`}
+              className={`flex-1 py-4 text-base font-bold transition-colors ${
+                mode === "sell" ? "bg-error text-error-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+              }`}
               onClick={() => {
                 setMode("sell");
                 setAmount("");
@@ -336,8 +338,9 @@ const LaunchpadContent = () => {
               Sell
             </button>
             <button
-              className={`flex-1 py-4 text-base font-bold transition-colors ${mode === "claim" ? "bg-secondary text-secondary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
-                }`}
+              className={`flex-1 py-4 text-base font-bold transition-colors ${
+                mode === "claim" ? "bg-secondary text-secondary-content" : "bg-base-200 hover:bg-base-300 opacity-60"
+              }`}
               onClick={() => {
                 setMode("claim");
                 setAmount("");
@@ -473,16 +476,12 @@ const LaunchpadContent = () => {
                     <span className="font-bold text-lg">Vesting Status</span>
                   </div>
                 </div>
-                <p className="text-sm opacity-70 mb-4">
-                  Tokens unlock based on market health.
-                </p>
+                <p className="text-sm opacity-70 mb-4">Tokens unlock based on market health.</p>
                 <div className="stats shadow bg-base-200 w-full mb-4">
-
                   <div className="stat place-items-center py-2">
                     <div className="stat-title text-xs">Claimable</div>
                     <div className="stat-value text-primary text-xl">{claimableNum.toLocaleString()}</div>
                   </div>
-
                 </div>
                 <button
                   className="btn btn-secondary w-full text-lg"
@@ -514,7 +513,9 @@ const LaunchpadContent = () => {
             </div>
             <div>
               <p className="text-xs opacity-60 mb-0.5">Claimable / Unlocked</p>
-              <p className="font-bold text-primary text-sm">{claimableNum.toLocaleString()} / {unlockedNum.toLocaleString()}</p>
+              <p className="font-bold text-primary text-sm">
+                {claimableNum.toLocaleString()} / {unlockedNum.toLocaleString()}
+              </p>
             </div>
             <div>
               <p className="text-xs opacity-60 mb-0.5">In Wallet</p>

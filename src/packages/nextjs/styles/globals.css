@@ -85,7 +85,10 @@
     margin: 1rem 0;
   }
 
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     margin-bottom: 0.5rem;
     line-height: 1;
   }
@@ -99,15 +102,21 @@
 
 /* ── Neon glow utilities ── */
 .glow-primary {
-  box-shadow: 0 0 20px rgb(124 58 237 / 0.35), 0 0 60px rgb(124 58 237 / 0.12);
+  box-shadow:
+    0 0 20px rgb(124 58 237 / 0.35),
+    0 0 60px rgb(124 58 237 / 0.12);
 }
 
 .glow-secondary {
-  box-shadow: 0 0 20px rgb(6 182 212 / 0.35), 0 0 60px rgb(6 182 212 / 0.12);
+  box-shadow:
+    0 0 20px rgb(6 182 212 / 0.35),
+    0 0 60px rgb(6 182 212 / 0.12);
 }
 
 .glow-accent {
-  box-shadow: 0 0 20px rgb(168 85 247 / 0.35), 0 0 60px rgb(168 85 247 / 0.12);
+  box-shadow:
+    0 0 20px rgb(168 85 247 / 0.35),
+    0 0 60px rgb(168 85 247 / 0.12);
 }
 
 /* ── Glassmorphism card helper ── */

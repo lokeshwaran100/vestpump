@@ -131,7 +131,7 @@ const Home: NextPage = () => {
             onClick={handleLaunch}
             disabled={!tokenName || !tokenSymbol || isLaunching}
           >
-            {isLaunching ? <span className="loading loading-spinner"></span> : "Launch on Bonding Curve"}
+            {isLaunching ? <span className="loading loading-spinner"></span> : "Launch"}
           </button>
         </div>
 
