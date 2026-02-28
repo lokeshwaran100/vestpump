@@ -1,0 +1,40 @@
+# VestPump — BSC Testnet Deployment
+
+## Network
+- Chain: BSC Testnet
+- Chain ID: 97
+- RPC: https://data-seed-prebsc-1-s1.binance.org:8545/
+
+---
+
+## Deployed Contracts
+
+### TokenFactory (Factory + Entry Point)
+- **Address:** `0x3C3d0E397065839e9d01a90bE04d01632062356C`
+- **Explorer:** https://testnet.bscscan.com/address/0x3C3d0E397065839e9d01a90bE04d01632062356C
+- **Tx Hash:** `0xf3b0dd9c29eea99f682756013fc02bd805f4ac38fd1364041ace9f2e3de3856a`
+- **Block:** 92845015
+- **Deployer:** `0x2d34A0133f43d807574eC7807d77A17f67e68B48`
+- **DEX Router (PancakeSwap V2 Testnet):** `0xD99D1c33F9fC3444f8101754aBC46c52416550D1`
+
+---
+
+## Per-Token Contracts (Deployed by Factory)
+
+Each call to `TokenFactory.createTokenLaunch(name, symbol)` deploys a full suite of contracts:
+
+| Contract | Role |
+|---|---|
+| `PumpToken` | ERC20 token with controlled mint/burn |
+| `BondingCurveSale` | Handles buy/sell during bonding curve phase |
+| `VestingVault` | Locks tokens and enforces market-driven unlocks |
+| `MarketHealthOracle` | Computes health score from on-chain signals |
+| `LiquidityBootstrapper` | Seeds DEX liquidity when curve completes |
+
+Contract addresses are emitted in the `TokenLaunched` event from the TokenFactory transaction.
+
+---
+
+## Verification
+
+Contracts compiled with Solidity `0.8.30+commit.73712a01`, optimizer enabled (200 runs).
